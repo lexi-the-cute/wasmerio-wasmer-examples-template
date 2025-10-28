@@ -1,90 +1,39 @@
 # Cupcake MCP Server + Wasmer
 
-This example shows how to run a **Model Context Protocol (MCP) server** for ChatGPT on **Wasmer Edge**.
+This example shows how to run a **Model Context Protocol (MCP)** server for ChatGPT on **Wasmer Edge**.
 
-> ℹ️ MCP servers connected to ChatGPT should expose at least **two tools**—`search` and `fetch`—so ChatGPT can both discover content and then retrieve specific items.
+> ℹ️ ChatGPT expects MCP servers to expose at least two tools (`search` and `fetch`) so it can discover and retrieve content.
 
 ## Demo
 
-`https://mcp-chatgpt-starter.wasmer.app/sse`
+https://mcp-chatgpt-starter.wasmer.app/sse
 
-Add it to ChatGPT as a connector (no auth), and then just ask ChatGPT to interact with it:
-
-```
-How many cupcakes Alice ordered?
-```
+Add it inside ChatGPT’s “Model Context Protocol” settings (no auth required) and ask questions like “How many cupcakes did Alice order?”
 
 ## How it Works
 
-All logic lives in **`server.py`**, but you can think of it in sections:
+Everything lives in `main.py`:
 
-### Data Section
-
-The server loads cupcake records from a local `records.json` file and builds a lookup dictionary:
-
-```python
-RECORDS = json.loads(Path(__file__).with_name("records.json").read_text())
-LOOKUP = {r["id"]: r for r in RECORDS}
-```
-
-### Models Section
-
-We define Pydantic models to structure responses:
-
-* `SearchResult` and `SearchResultPage` for search results.
-* `FetchResult` for full cupcake order details.
-
-### Tools Section
-
-Two MCP tools are exposed via `FastMCP`:
-
-* **`search(query: str)`**
-  Splits the query into tokens, performs keyword matching across `title`, `text`, and `metadata`, and returns a list of matching results.
-
-* **`fetch(id: str)`**
-  Retrieves a single cupcake order by ID from the lookup dictionary and returns full details, including optional `url` and `metadata`.
-
-### Entrypoint Section
-
-At the bottom of `server.py`, the app is created and run:
-
-```python
-app = create_server()
-
-if __name__ == "__main__":
-    app.run(transport="sse")
-```
-
-The server uses **Server-Sent Events (SSE)** to communicate with ChatGPT’s MCP integration.
+* `RECORDS = ...` loads `records.json` and builds a `LOOKUP` dictionary keyed by cupcake order IDs.
+* Pydantic models (`SearchResult`, `SearchResultPage`, `FetchResult`) shape the tool responses so clients get structured JSON.
+* `FastMCP(name="Cupcake MCP")` registers two tools:
+  * `search(query)` tokenises the query and performs keyword matching across order titles, text, and metadata.
+  * `fetch(id)` returns the full order record or raises `ValueError` if the ID is unknown.
+* `app = create_server()` exposes the MCP instance for Wasmer (`main:app`), and the `__main__` block runs it with the SSE transport.
 
 ## Running Locally
 
-Install dependencies:
-
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+python main.py
 ```
 
-Run the server:
-
-```bash
-python server.py
-```
-
-Your MCP server will now be running and ready for connections from an MCP client (like ChatGPT with MCP enabled).
-
-## Example Tools in Action
-
-* **Search tool** (`search("red velvet")`)
-  Returns a list of cupcake orders that mention “red velvet.”
-
-* **Fetch tool** (`fetch("42")`)
-  Returns the full details of order `42`, including text, metadata, and an optional URL.
+Your server listens for SSE connections. Point an MCP client (ChatGPT, Claude Desktop, etc.) at `http://127.0.0.1:8000/sse`.
 
 ## Deploying to Wasmer (Overview)
 
-1. Include both `server.py` and `records.json` in your project.
-2. Deploy to Wasmer, ensuring the entrypoint is `server.py`.
-3. Access it at:
-   `https://<your-subdomain>.wasmer.app/sse`
-
+1. Ship `main.py` and `records.json` together; expose the MCP instance as `main:app`.
+2. Deploy to Wasmer Edge.
+3. Connect your MCP client to `https://<your-subdomain>.wasmer.app/sse`.

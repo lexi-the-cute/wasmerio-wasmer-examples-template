@@ -1,38 +1,32 @@
-This is a simple [Madeline](https://docs.madelineproto.xyz/) application starter
+# MadelineProto Telegram Client + Wasmer
 
-## Getting Started
+This example shows how to run a minimal **MadelineProto** client on **Wasmer Edge**. MadelineProto lets you automate interactions with the Telegram network using PHP.
 
-Modify the logic of your the PHP application in the `app/index.php` file.
+## Demo
 
-<!-- First, install the dependencies with composer:
+`https://<your-subdomain>.wasmer.app/` (configure your own Telegram credentials to use the demo)
 
-```
-$ composer install
-``` -->
+## How it Works
 
-You can run things locally with:
+The entrypoint `app/index.php` bootstraps MadelineProto:
 
-```
-$ php -t app -S localhost:8080
-```
+* `vendor/autoload.php` loads dependencies installed with Composer.
+* `new MadelineProto\API('session.madeline')` initialises the Telegram client and persists the session in `session.madeline`.
+* After `start()` authenticates the session, the script fetches the current user, sends a `/start` message to `@stickeroptimizerbot`, joins the official `@MadelineProto` channel, attempts to accept an invite link, and finally echoes `"OK, done!"`.
 
-Or you can also use `wasmer run` to run it locally (check out the [Wasmer install guide](https://docs.wasmer.io/install)):
+Make sure you provide any required environment variables (e.g., API ID and hash) so the login flow can complete during deployment.
 
-```console
-$ wasmer run .
-```
-
-Open [http://localhost:8080](http://localhost:8080) with your browser to see the result.
-
-
-## Deploy on Wasmer Edge
-
-The easiest way to deploy your PHP app is to use the [Wasmer Edge](https://wasmer.io/products/edge).
-
-Live example: TODO
-
-Run this commmand to deploy to Wasmer Edge:
+## Running Locally
 
 ```bash
-wasmer deploy
+composer install
+php -t app -S 127.0.0.1:8080
 ```
+
+The script runs immediately when requested at `http://127.0.0.1:8080/`. Check your logs or console output to see MadelineProto activity.
+
+## Deploying to Wasmer (Overview)
+
+1. Include the generated `vendor/` directory and persistable `session.madeline` file.
+2. Configure your Telegram API credentials as Wasmer secrets/environment variables.
+3. Deploy, then visit `https://<your-subdomain>.wasmer.app/` to trigger the MadelineProto automation.

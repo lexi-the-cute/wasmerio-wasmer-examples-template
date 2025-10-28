@@ -1,100 +1,39 @@
-# Image Processing with Pillow + Wasmer
+# FastAPI Image Processor (Pillow) + Wasmer
 
-This demo shows how to use **Pillow (PIL)** for basic image transformations such as **rotation** and **cropping**. The program happens to wrap these operations in a small FastAPI app, but the focus here is on the **Pillow usage**.
+This example shows how to perform simple image manipulations with **Pillow (PIL)** behind a **FastAPI** endpoint on **Wasmer Edge**.
 
 ## Demo
 
 https://python-pillow-example.wasmer.app
 
-## How it Works (sections from `app.py`)
+## How it Works
 
-All logic lives in one file. Here are the **relevant code sections** related to Pillow:
+`main.py` implements a `/process` route that accepts three query parameters: `url`, `rotate`, and `crop`.
 
-### Loading an image
+1. **Download** – `requests.get(url)` fetches the remote image and loads it with `Image.open(BytesIO(...))`.
+2. **Transform** – If `rotate` is provided, the image rotates with `expand=True`; if `crop` is provided (`left,top,right,bottom`), the image is cropped accordingly.
+3. **Return** – The image is saved to an in-memory buffer as PNG and returned as a streaming response.
 
-The image is downloaded from a user-provided URL and loaded into memory:
-
-```python
-response = requests.get(url)
-image = Image.open(BytesIO(response.content))
-```
-
-Key point: `Image.open()` can read from file paths, file objects, or in this case, an in-memory `BytesIO`.
-
-### Rotation
-
-Rotation is straightforward with Pillow:
-
-```python
-if rotate:
-    image = image.rotate(rotate, expand=True)
-```
-
-* `rotate(degrees)` rotates counterclockwise by the given angle.
-* `expand=True` resizes the output image so the full rotated image fits (without clipping).
-
-### Cropping
-
-Cropping uses a bounding box defined by `(left, upper, right, lower)` pixel coordinates:
-
-```python
-crop_box = tuple(map(int, crop.split(",")))
-image = image.crop(crop_box)
-```
-
-* Example: `"0,0,200,200"` crops the top-left 200×200 region.
-* Invalid crop strings are caught with error handling.
-
-### Saving to Bytes
-
-Finally, the image is re-encoded into PNG format and written to a `BytesIO` buffer:
-
-```python
-img_io = BytesIO()
-image.save(img_io, format="PNG")
-img_io.seek(0)
-```
-
-This makes it easy to return the processed image over HTTP or save it to disk.
-
----
+Invalid crop strings or download failures are handled with descriptive HTTP errors.
 
 ## Running Locally
 
-1. Create a `requirements.txt`:
-
-```
-fastapi
-uvicorn
-pillow
-requests
-```
-
-2. Install dependencies:
-
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-3. Run the server:
+Then try:
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+curl "http://127.0.0.1:8000/process?url=https://picsum.photos/320&rotate=45&crop=0,0,200,200" \
+  --output rotated.png
 ```
-
-4. Test locally by visiting:
-
-```
-http://127.0.0.1:8000/process?url=https://picsum.photos/200/300&rotate=45&crop=0,0,200,200
-```
-
-This downloads an image, rotates it 45°, crops it, and returns the transformed PNG.
-
----
 
 ## Deploying to Wasmer (Overview)
 
-1. Include `app.py` and `requirements.txt`.
-2. Deploy to Wasmer or run it locally with:
-   `uvicorn app:app --host 0.0.0.0 --port $PORT`
-3. Visit `https://<your-subdomain>.wasmer.app/process?...` with query parameters for URL, rotation, and crop.
+1. Bundle `main.py` and `requirements.txt` in your project.
+2. Configure the start command to run Uvicorn: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+3. Deploy to Wasmer Edge and call `https://<your-subdomain>.wasmer.app/process?...`.

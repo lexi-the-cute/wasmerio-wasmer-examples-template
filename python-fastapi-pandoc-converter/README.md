@@ -1,109 +1,40 @@
-# Pandoc Converter (pypandoc) + Wasmer
+# Pandoc Converter (FastAPI) + Wasmer
 
-This demo shows how to use **pypandoc** (a Python wrapper around Pandoc) to convert text between markup formats. The program provides a small web UI, but the focus here is on how `pypandoc.convert_text(...)` is used.
+This example shows how to wrap **Pandoc** via **pypandoc** inside a **FastAPI** app and deploy it to **Wasmer Edge**.
 
 ## Demo
 
 https://pandoc-converter-example.wasmer.app/
 
-## How it Works (sections from `app.py`)
+## How it Works
 
-All logic lives in one file. Here are the **relevant code sections** related to pypandoc:
+`src/main.py` exposes both an HTMX-powered form and REST endpoints:
 
-### Supported formats
-
-A list of markup formats is declared. These are passed directly to `pypandoc`:
-
-```python
-SUPPORTED_FORMATS = [
-    ("markdown", "Markdown"),
-    ("rst", "reStructuredText"),
-    ("html", "HTML"),
-    ("latex", "LaTeX"),
-    ("mediawiki", "MediaWiki"),
-    ("docbook", "DocBook"),
-    ("org", "Org Mode"),
-]
-```
-
-### Conversion call
-
-The actual conversion happens in the POST request handler. The work is run in a background thread to avoid blocking the server:
-
-```python
-converted = await asyncio.to_thread(
-    pypandoc.convert_text,
-    text,
-    to=target_format,
-    format=source_format,
-)
-```
-
-Key details:
-
-* `format` specifies the **source format**.
-* `to` specifies the **target format**.
-* The return value is the converted text, ready to display or save.
-
-### Error handling
-
-If Pandoc raises an error, it is caught and safely escaped for display:
-
-```python
-except (RuntimeError, OSError) as exc:
-    escaped_error = html.escape(str(exc))
-    return ERROR_TEMPLATE.replace("{escaped_error}", escaped_error)
-```
-
-This ensures that unsupported conversions or missing executables don’t crash the app.
-
----
+* `SUPPORTED_FORMATS` lists common markup types (Markdown, reStructuredText, HTML, LaTeX, MediaWiki, DocBook, Org).
+* The `/` route renders a Bulma-styled form with HTMX attributes so conversions happen without a full page reload.
+* `/api/hx/convert` handles HTMX submissions. It offloads `pypandoc.convert_text(...)` to a background thread via `asyncio.to_thread` and returns either a success or error message fragment.
+* `/api/pandoc-convert` (GET or POST) provides a REST interface that responds with plain text, making automation simple.
+* Errors from Pandoc are caught and escaped to keep the UI safe and informative.
 
 ## Running Locally
 
-1. Create a `requirements.txt`:
-
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install fastapi uvicorn pypandoc
+# install the pandoc binary if you don't already have it (brew install pandoc, apt install pandoc, etc.)
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-fastapi
-uvicorn
-pypandoc
-```
 
-2. Install dependencies:
+Open `http://127.0.0.1:8000/` to use the form, or call the API directly:
 
 ```bash
-pip install -r requirements.txt
-```
-
-3. Run the server:
-
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-4. Convert via API (example without UI):
-
-```bash
-curl -X POST http://localhost:8000/api/hx/convert \
-  -F 'source_format=markdown' \
-  -F 'target_format=rst' \
+curl -X POST "http://127.0.0.1:8000/api/pandoc-convert?from=markdown&to=rst" \
   -F 'text=# Hello **world**'
 ```
 
-The response will contain the converted text wrapped in HTML.
-
-API endpoints:
-
-- GET `/api/pandoc-convert?from=markdown&to=html&text=...` returns converted content as plain text.
-- POST `/api/pandoc-convert?from=markdown&to=html` with form field `text` returns converted content as plain text.
-
-On failure, endpoints return JSON `{ "error": "<msg>" }` with status 400.
-
-
----
-
 ## Deploying to Wasmer (Overview)
 
-1. Include `app.py` and `requirements.txt`.
-2. Deploy to Wasmer or point the web process to run Uvicorn (e.g., `uvicorn app:app --host 0.0.0.0 --port $PORT`).
-3. Open `https://<your-subdomain>.wasmer.app/` and try converting text between formats.
+1. Bundle `src/main.py`, your dependency metadata, and the Pandoc binary (or configure Wasmer packages to provide it).
+2. Use Uvicorn as the entrypoint (e.g., `uvicorn src.main:app --host 0.0.0.0 --port $PORT`).
+3. Deploy and visit `https://<your-subdomain>.wasmer.app/` to convert documents in the browser or via API.

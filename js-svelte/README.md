@@ -1,36 +1,33 @@
-This is a [Svelte](https://nextjs.org/) project bootstrapped with `npm create svelte@latest my-app`.
+# Svelte + Vite Static Site + Wasmer
 
-## Getting Started
+This example shows how to build a **Svelte** app with **Vite** and deploy the static output to **Wasmer Edge**.
 
-First, run the development server:
+## Demo
+
+https://wasmer-edge-svelte-sample.wasmer.app/
+
+## How it Works
+
+* `src/routes/+page.svelte` (or the starter components) define the UI.
+* Vite handles bundling; `npm run build` emits a production-ready site into `build/`.
+* Wasmer Edge serves the static files directly—no server-side rendering required.
+
+## Running Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-You can also run the Svelte starter template easily using Wasmer (check out the [install guide](https://docs.wasmer.io/install)):
+Open `http://127.0.0.1:5173/` to see the live reloading dev server. When you’re ready for a production preview:
 
 ```bash
 npm run build
-wasmer run . -- --port 5173
+npm run preview
 ```
 
-Open [http://localhost:5173](http://localhost:5173) with your browser to see the result.
+## Deploying to Wasmer (Overview)
 
-## Deploy on Wasmer Edge
-
-The easiest way to deploy your Svelte app is to use the [Wasmer Edge](https://wasmer.io/products/edge).
-
-Live example: https://wasmer-edge-svelte-sample.wasmer.app/
-
-First, you'll need to run `npm run build`, and then, to deploy to Wasmer Edge:
-
-```bash
-wasmer deploy
-```
+1. Build the project: `npm run build` (outputs to `build/`).
+2. Tell Wasmer Edge to publish the `build/` directory.
+3. Deploy and visit `https://<your-subdomain>.wasmer.app/`.
